@@ -1,8 +1,8 @@
 import streamlit as st
 import requests
 
-VACCINE_CHOICES = ["COVISHIELD","COVAXIN"]
-AGE_CHOICES = [60,45,18]
+VACCINE_CHOICES = ["Select", "COVISHIELD", "COVAXIN"]
+AGE_CHOICES = ["Select", 45, 18]
 
 Apis={
     "states":"https://cdn-api.co-vin.in/api/v2/admin/location/states",
@@ -46,18 +46,18 @@ def format_session(session):
     age_limit = session['min_age_limit']
     vaccine = session['vaccine']
     slots = session['slots']
+    available = session['available_capacity']
+    fee_type = session['fee_type'] + " - " + session['fee']
     st.markdown("""
     ### {0}
     #### {1}
     ##### Age limit: `{2}`
     ##### Vaccine: `{3}`
-    ##### Slots: `{4}`
+    ##### Available capacity : `{4}`
+    ##### Fee: `{5}`
+    ##### Slots: `{6}`
     -----------------------
-    """.format(centre_name,
-    address,
-    age_limit,
-    vaccine,
-    slots))
+    """.format(centre_name, address, age_limit, vaccine, available, fee_type, slots))
 
 def show_slots(sessions):
     st.info(str(len(sessions)) + " centres found")
@@ -65,28 +65,34 @@ def show_slots(sessions):
         format_session(session)
 
 def filter_by_vaccine(sessions, vaccine):
+    if vaccine == "Select":
+        return sessions
     filtred_sessions = [i for i in sessions if i['vaccine'] == vaccine]
     return filtred_sessions
 
 def filter_by_age(sessions, age):
+    if age == "Select":
+        return sessions
     filtred_sessions = [i for i in sessions if i['min_age_limit'] == age]
     return filtred_sessions
 
 def find_by_pin(date):
-    cols = st.beta_columns([.5, .5])
+    cols = st.beta_columns([.33, .33, .33])
     pincode = cols[0].text_input("Enter pincode")
-    vaccine = cols[1].selectbox("Vaccine", VACCINE_CHOICES)
+    vaccine = cols[1].selectbox("Filter by Vaccine type", VACCINE_CHOICES)
+    age = cols[2].selectbox("Filter by Min Age", AGE_CHOICES)
     if pincode:
         with st.spinner("Fetching data ..."):
             sessions = [i for i in get_vaccine_slots_by_pin(pincode, date)['sessions']]
         if sessions:
-            show_slots(filter_by_vaccine(sessions,vaccine))
+            show_slots(filter_by_vaccine(filter_by_age(sessions,age),vaccine))
         else:
             st.warning("No slots found!")
 
 def find_by_district(date):
-    cols = st.beta_columns([.33, .33, .33])
-    vaccine = cols[2].selectbox("Vaccine", VACCINE_CHOICES)
+    cols = st.beta_columns([.25, .25, .25, .25])
+    vaccine = cols[2].selectbox("Filter by Vaccine type", VACCINE_CHOICES)
+    age = cols[3].selectbox("Filter by Min Age", AGE_CHOICES)
     with st.spinner("Fetching data ..."):
         statename_to_id_map = {i['state_name']:i['state_id'] for i in get_states()['states']}
         st_id = statename_to_id_map[cols[0].selectbox("Select state", list(statename_to_id_map.keys()))]
@@ -96,7 +102,7 @@ def find_by_district(date):
     with st.spinner("Fetching data ..."):
         sessions = [i for i in get_vaccine_slots_by_distirct(dst_id, date)['sessions']]
     if sessions:   
-        show_slots(filter_by_vaccine(sessions,vaccine))
+        show_slots(filter_by_vaccine(filter_by_age(sessions,age),vaccine))
     else:
         st.warning("No slots found!")
 
